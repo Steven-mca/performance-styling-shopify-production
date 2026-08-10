@@ -75,7 +75,7 @@ export default function AgreementPortal() {
           <span>PRIVATE COLLABORATION PORTAL</span>
           <h1>Your agreement is ready.</h1>
           <p>Enter the six-digit PIN sent to you by Performance Styling.</p>
-          <form method="post" action={`${initial.storefrontOrigin}/apps/collab/${token}/`}><label>Access PIN<input name="pin" inputMode="numeric" maxLength={6} required /></label>{result && !result.ok && <p className={styles.error}>{result.error}</p>}<button type="submit">Open agreement →</button></form>
+          <form method="post"><label>Access PIN<input name="pin" inputMode="numeric" maxLength={6} required /></label>{result && !result.ok && <p className={styles.error}>{result.error}</p>}<button type="submit">Open agreement →</button></form>
           <small>{initial.reference}</small>
         </section>
       </main></AppProxyProvider>
@@ -92,14 +92,14 @@ export default function AgreementPortal() {
       <section className={styles.content}><div className={styles.intro}><span>02 / CONTENT PLAN</span><h2>Your deliverables</h2></div><article><p>{agreement.deliverables}</p><hr/><p>{agreement.terms}</p></article></section>
       <section className={styles.sign}>
         <span>FINAL STEP</span><h2>{agreement.creatorSignature ? "Agreement signed." : "Let’s make it official."}</h2>
-        {agreement.creatorSignature ? <><img src={agreement.creatorSignature} alt="Creator signature"/><p>Signed by {agreement.creatorSignedName} on {new Date(agreement.creatorSignedAt!).toLocaleString("en-GB")}</p><button onClick={() => window.print()}>Print signed copy</button></> : <SignatureForm pin={result?.ok ? result.pin : ""} storefrontOrigin={initial.storefrontOrigin} />}
+        {agreement.creatorSignature ? <><img src={agreement.creatorSignature} alt="Creator signature"/><p>Signed by {agreement.creatorSignedName} on {new Date(agreement.creatorSignedAt!).toLocaleString("en-GB")}</p><button onClick={() => window.print()}>Print signed copy</button></> : <SignatureForm pin={result?.ok ? result.pin : ""} />}
       </section>
     </main></AppProxyProvider>
   );
 }
 
-function SignatureForm({ pin, storefrontOrigin }: { pin: string; storefrontOrigin: string }) {
+function SignatureForm({ pin }: { pin: string }) {
   const { token } = useParams();
   const signatureScript = `(function(){var s=document.currentScript,f=s&&s.closest('form'),c=f&&f.querySelector('canvas'),i=f&&f.querySelector('input[name="signature"]');if(!f||!c||!i)return;var x=c.getContext('2d'),d=false,p=function(e){var r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]};c.addEventListener('pointerdown',function(e){d=true;c.setPointerCapture(e.pointerId);var q=p(e);x.beginPath();x.moveTo(q[0],q[1]);});c.addEventListener('pointermove',function(e){if(!d)return;var q=p(e);x.lineWidth=3;x.lineCap='round';x.strokeStyle='#111';x.lineTo(q[0],q[1]);x.stroke();});var done=function(){if(!d)return;d=false;i.value=c.toDataURL('image/png');};c.addEventListener('pointerup',done);c.addEventListener('pointercancel',done);f.addEventListener('submit',function(e){if(!i.value){e.preventDefault();alert('Please draw your signature before signing.');}});})();`;
-  return <form method="post" action={`${storefrontOrigin}/apps/collab/${token}/`} className={styles.signatureForm}><input type="hidden" name="pin" value={pin}/><input type="hidden" name="intent" value="sign"/><input type="hidden" name="signature"/><label>Full legal name<input name="signedName" required/></label><label>Draw your signature<canvas width="700" height="180"></canvas></label><label className={styles.checkbox}><input type="checkbox" required/> I have read and agree to the collaboration details and terms above.</label><button type="submit">Sign agreement</button><script dangerouslySetInnerHTML={{__html: signatureScript}} /></form>;
+  return <form method="post" className={styles.signatureForm}><input type="hidden" name="pin" value={pin}/><input type="hidden" name="intent" value="sign"/><input type="hidden" name="signature"/><label>Full legal name<input name="signedName" required/></label><label>Draw your signature<canvas width="700" height="180"></canvas></label><label className={styles.checkbox}><input type="checkbox" required/> I have read and agree to the collaboration details and terms above.</label><button type="submit">Sign agreement</button><script dangerouslySetInnerHTML={{__html: signatureScript}} /></form>;
 }
