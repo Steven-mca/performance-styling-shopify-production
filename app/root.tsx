@@ -1,4 +1,5 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import proxyStyles from "./styles/proxy.module.css?inline";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Links />
       </head>
       <body>
+        <style dangerouslySetInnerHTML={{ __html: proxyStyles }} />
         <Outlet />
         <ScrollRestoration />
         <Scripts />
