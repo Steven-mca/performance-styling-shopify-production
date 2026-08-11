@@ -22,7 +22,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     ? `https://${shop}`
     : "";
   return {
-    exists: Boolean(agreement),
+    exists: Boolean(agreement && !agreement.archivedAt),
     reference: agreement?.reference ?? null,
     appUrl: process.env.SHOPIFY_APP_URL ?? new URL(request.url).origin,
     storefrontOrigin,
@@ -32,7 +32,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   await authenticate.public.appProxy(request);
   const agreement = await prisma.agreement.findUnique({ where: { accessToken: params.token } });
-  if (!agreement) return { ok: false as const, error: "Agreement not found." };
+  if (!agreement || agreement.archivedAt) return { ok: false as const, error: "Agreement not found." };
   const form = await request.formData();
   const pin = String(form.get("pin") || "");
   if (!verifyPin(pin, agreement.pinHash)) return { ok: false as const, error: "The PIN is incorrect." };

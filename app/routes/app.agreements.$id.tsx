@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
+import { Form, redirect, useActionData, useLoaderData, useNavigation } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -18,15 +18,41 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const form = await request.formData();
+  const intent = String(form.get("intent") || "sign");
+  const existing = await prisma.agreement.findFirst({
+    where: { id: params.id, shop: session.shop },
+  });
+  if (!existing) throw new Response("Agreement not found", { status: 404 });
+
+  if (intent === "archive") {
+    await prisma.agreement.update({
+      where: { id: existing.id },
+      data: { archivedAt: new Date() },
+    });
+    return redirect("/app");
+  }
+
+  if (intent === "restore") {
+    await prisma.agreement.update({
+      where: { id: existing.id },
+      data: { archivedAt: null },
+    });
+    return redirect("/app");
+  }
+
+  if (intent === "delete") {
+    if (existing.creatorSignature || existing.companySignature) {
+      return { ok: false as const, error: "Signed agreements cannot be deleted. Archive this agreement instead." };
+    }
+    await prisma.agreement.delete({ where: { id: existing.id } });
+    return redirect("/app");
+  }
+
   const companySignerName = String(form.get("companySignerName") || "").trim();
   const companySignature = String(form.get("companySignature") || "");
   if (!companySignerName || !companySignature.startsWith("data:image/png;base64,")) {
     return { ok: false as const, error: "Enter your name and draw your signature." };
   }
-  const existing = await prisma.agreement.findFirst({
-    where: { id: params.id, shop: session.shop },
-  });
-  if (!existing) throw new Response("Agreement not found", { status: 404 });
   const completed = Boolean(existing.creatorSignature);
   await prisma.agreement.update({
     where: { id: existing.id },
@@ -131,6 +157,43 @@ export default function AgreementDetails() {
           </s-box>
           <s-heading>Deliverables</s-heading><s-paragraph>{agreement.deliverables}</s-paragraph>
           <s-heading>Terms</s-heading><s-paragraph>{agreement.terms}</s-paragraph>
+        </s-stack>
+      </s-section>
+
+      <s-section heading="Agreement management">
+        <s-stack direction="block" gap="base">
+          {agreement.archivedAt ? (
+            <>
+              <s-banner tone="warning" heading="Agreement archived">
+                Its private creator link is disabled until the agreement is restored.
+              </s-banner>
+              <Form method="post">
+                <input type="hidden" name="intent" value="restore" />
+                <s-button type="submit">Restore agreement</s-button>
+              </Form>
+            </>
+          ) : (
+            <Form method="post">
+              <input type="hidden" name="intent" value="archive" />
+              <s-button type="submit">Archive agreement</s-button>
+            </Form>
+          )}
+          {!agreement.creatorSignature && !agreement.companySignature && (
+            <Form
+              method="post"
+              onSubmit={(event) => {
+                if (!window.confirm("Permanently delete this unsigned agreement? This cannot be undone.")) {
+                  event.preventDefault();
+                }
+              }}
+            >
+              <input type="hidden" name="intent" value="delete" />
+              <s-button type="submit" tone="critical">Delete unsigned agreement</s-button>
+            </Form>
+          )}
+          {(agreement.creatorSignature || agreement.companySignature) && (
+            <s-paragraph color="subdued">Signed agreements are retained for audit purposes and can only be archived.</s-paragraph>
+          )}
         </s-stack>
       </s-section>
 
