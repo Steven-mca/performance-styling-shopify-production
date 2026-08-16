@@ -27,12 +27,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const salt = randomBytes(16).toString("hex");
   const pinHash = `${salt}:${scryptSync(pin, salt, 64).toString("hex")}`;
   const accessToken = randomBytes(9).toString("base64url");
-  const count = await prisma.agreement.count({ where: { shop: session.shop } });
-  const reference = `PS-INF-${String(count + 1).padStart(4, "0")}`;
-  const agreement = await prisma.agreement.create({
-    data: {
+  const existingReferences = await prisma.agreement.findMany({
+    where: { reference: { startsWith: "PS-INF-" } },
+    select: { reference: true },
+  });
+  let nextReferenceNumber = existingReferences.reduce((highest, item) => {
+    const match = /^PS-INF-(\d+)$/.exec(item.reference);
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0) + 1;
+
+  const agreementData = {
       shop: session.shop,
-      reference,
       accessToken,
       pinHash,
       creatorName,
@@ -46,8 +51,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       contributionPence: poundsToPence(required(form, "contribution") || "150"),
       salesTarget: Number(required(form, "salesTarget") || 5),
       refundPence: poundsToPence(required(form, "refundValue") || "150"),
-    },
-  });
+  };
+
+  let agreement: Awaited<ReturnType<typeof prisma.agreement.create>> | null = null;
+  let reference = "";
+  for (let attempt = 0; attempt < 5 && !agreement; attempt += 1) {
+    reference = `PS-INF-${String(nextReferenceNumber + attempt).padStart(4, "0")}`;
+    try {
+      agreement = await prisma.agreement.create({
+        data: { ...agreementData, reference },
+      });
+    } catch (error) {
+      const isDuplicateReference =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "P2002";
+      if (!isDuplicateReference) throw error;
+    }
+  }
+  if (!agreement) {
+    return { ok: false as const, error: "A unique agreement reference could not be generated. Please try again." };
+  }
 
   return { ok: true as const, pin, reference, accessToken: agreement.accessToken };
 };
