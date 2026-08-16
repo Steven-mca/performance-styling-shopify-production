@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Form, redirect, useActionData, useLoaderData, useNavigation } from "react-router";
+import { Form, redirect, useActionData, useLoaderData, useNavigate, useNavigation } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -142,13 +142,20 @@ function SignaturePad() {
 export default function AgreementDetails() {
   const { agreement } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
+  const navigate = useNavigate();
   const navigation = useNavigation();
   const storefrontPath = `/apps/collab/${agreement.accessToken}/`;
 
   return (
     <s-page heading={agreement.reference} inlineSize="base">
       <s-link slot="breadcrumb-actions" href="/app">Agreements</s-link>
-      <s-button slot="primary-action" href={`/app/agreements/${agreement.id}/edit`} icon="edit">Edit agreement</s-button>
+      <s-button
+        slot="primary-action"
+        icon="edit"
+        onClick={() => navigate(`/app/agreements/${agreement.id}/edit`)}
+      >
+        Edit agreement
+      </s-button>
       <s-button slot="secondary-actions" onClick={() => window.print()}>Print signed copy</s-button>
       <s-section heading="Agreement details">
         <s-stack direction="block" gap="base">
