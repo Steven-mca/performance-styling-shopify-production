@@ -1,4 +1,5 @@
 import { randomBytes, scryptSync } from "node:crypto";
+import { useState } from "react";
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useNavigation } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -74,15 +75,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return { ok: false as const, error: "A unique agreement reference could not be generated. Please try again." };
   }
 
-  return { ok: true as const, pin, reference, accessToken: agreement.accessToken };
+  return { ok: true as const, pin, reference, accessToken: agreement.accessToken, creatorName };
 };
 
 export default function NewAgreement() {
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
+  const [copied, setCopied] = useState(false);
   const saving = navigation.state === "submitting";
 
   if (result?.ok) {
+    const agreementUrl = `https://performancebodykits.com/apps/collab/${result.accessToken}/`;
+    const influencerMessage = `Hey ${result.creatorName}! We’ve drawn up your collaboration proposal with Performance Styling. You can view it here:\n\n${agreementUrl}\n\nIf you’re happy with everything, please enter the access code below and sign the agreement so we can get started on the collaboration.\n\nAccess code: ${result.pin}\n\nIf you have any questions, just let us know!`;
+
+    const copyMessage = async () => {
+      try {
+        await navigator.clipboard.writeText(influencerMessage);
+        setCopied(true);
+      } catch {
+        window.prompt("Copy this message:", influencerMessage);
+      }
+    };
+
     return (
       <s-page heading="Agreement created" inlineSize="small">
         <s-section>
@@ -98,6 +112,20 @@ export default function NewAgreement() {
             </s-box>
             <s-box padding="base" background="subdued" borderRadius="base">
               <s-paragraph color="subdued">Access PIN</s-paragraph><s-heading>{result.pin}</s-heading>
+            </s-box>
+            <s-box padding="base" border="base" borderRadius="base">
+              <s-stack direction="block" gap="base">
+                <s-heading>Message for the influencer</s-heading>
+                <s-text-area
+                  label="Ready to send"
+                  value={influencerMessage}
+                  rows={9}
+                  readOnly
+                ></s-text-area>
+                <s-button type="button" variant="primary" onClick={copyMessage}>
+                  {copied ? "Message copied" : "Copy message"}
+                </s-button>
+              </s-stack>
             </s-box>
             <s-button href="/app" variant="primary">Return to agreements</s-button>
           </s-stack>
