@@ -10,6 +10,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const agreement = await prisma.agreement.findFirst({
     where: { id: params.id, shop: session.shop },
+    include: { changes: { orderBy: { createdAt: "desc" } } },
   });
   if (!agreement) throw new Response("Agreement not found", { status: 404 });
   return { agreement };
@@ -69,6 +70,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
 const money = (pence: number) =>
   new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(pence / 100);
+
+const changeValue = (value: unknown) => {
+  if (value === null || value === "") return "Not set";
+  if (typeof value === "boolean") return value ? "Enabled" : "Disabled";
+  return String(value);
+};
 
 function SignaturePad() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -141,6 +148,7 @@ export default function AgreementDetails() {
   return (
     <s-page heading={agreement.reference} inlineSize="base">
       <s-link slot="breadcrumb-actions" href="/app">Agreements</s-link>
+      <s-button slot="primary-action" href={`/app/agreements/${agreement.id}/edit`} icon="edit">Edit agreement</s-button>
       <s-button slot="secondary-actions" onClick={() => window.print()}>Print signed copy</s-button>
       <s-section heading="Agreement details">
         <s-stack direction="block" gap="base">
@@ -151,6 +159,11 @@ export default function AgreementDetails() {
             <s-box><s-paragraph color="subdued">Email</s-paragraph><s-text>{agreement.creatorEmail}</s-text></s-box>
             <s-box><s-paragraph color="subdued">Vehicle</s-paragraph><s-text>{agreement.vehicle}</s-text></s-box>
             <s-box><s-paragraph color="subdued">Creator contribution</s-paragraph><s-text>{money(agreement.contributionPence)}</s-text></s-box>
+            <s-box><s-paragraph color="subdued">Sales target</s-paragraph><s-text>{agreement.salesTarget}</s-text></s-box>
+            <s-box>
+              <s-paragraph color="subdued">Refund on target</s-paragraph>
+              <s-text>{agreement.refundEnabled ? money(agreement.refundPence) : "Disabled"}</s-text>
+            </s-box>
           </s-grid>
           <s-box padding="base" background="subdued" borderRadius="base">
             <s-paragraph color="subdued">Creator storefront path</s-paragraph><s-text type="strong">{storefrontPath}</s-text>
@@ -158,6 +171,33 @@ export default function AgreementDetails() {
           <s-heading>Deliverables</s-heading><s-paragraph>{agreement.deliverables}</s-paragraph>
           <s-heading>Terms</s-heading><s-paragraph>{agreement.terms}</s-paragraph>
         </s-stack>
+      </s-section>
+
+      <s-section heading="Change log">
+        {agreement.changes.length === 0 ? (
+          <s-paragraph color="subdued">No changes have been made since this agreement was created.</s-paragraph>
+        ) : (
+          <s-stack direction="block" gap="base">
+            {agreement.changes.map((entry) => {
+              const fields = entry.changes as Record<string, { from: unknown; to: unknown }>;
+              return (
+                <s-box key={entry.id} padding="base" border="base" borderRadius="base">
+                  <s-stack direction="block" gap="small">
+                    <s-text type="strong">{new Date(entry.createdAt).toLocaleString("en-GB")}</s-text>
+                    <s-paragraph color="subdued">Changed by {entry.changedBy || "Shopify admin"}</s-paragraph>
+                    <s-unordered-list>
+                      {Object.entries(fields).map(([field, values]) => (
+                        <s-list-item key={field}>
+                          {field}: {changeValue(values.from)} → {changeValue(values.to)}
+                        </s-list-item>
+                      ))}
+                    </s-unordered-list>
+                  </s-stack>
+                </s-box>
+              );
+            })}
+          </s-stack>
+        )}
       </s-section>
 
       <s-section heading="Agreement management">

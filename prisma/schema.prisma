@@ -49,6 +49,7 @@ model Agreement {
   wheelValuePence      Int
   contributionPence    Int
   salesTarget          Int
+  refundEnabled        Boolean  @default(true)
   refundPence          Int
   status               String   @default("AWAITING_CREATOR")
   creatorSignature     String?
@@ -61,7 +62,19 @@ model Agreement {
   archivedAt           DateTime?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  changes              AgreementChange[]
 
   @@index([shop, status])
   @@index([shop, archivedAt])
+}
+
+model AgreementChange {
+  id          String    @id @default(cuid())
+  agreementId String
+  agreement   Agreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  changedBy   String?
+  changes     Json
+  createdAt   DateTime  @default(now())
+
+  @@index([agreementId, createdAt])
 }

@@ -20,6 +20,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const creatorName = required(form, "creatorName");
   const creatorEmail = required(form, "creatorEmail");
   const vehicle = required(form, "vehicle");
+  const refundEnabled = form.get("refundEnabled") === "enabled";
   if (!creatorName || !creatorEmail || !vehicle) {
     return { ok: false as const, error: "Creator name, email and vehicle are required." };
   }
@@ -51,6 +52,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       wheelValuePence: poundsToPence(required(form, "wheelValue") || "350"),
       contributionPence: poundsToPence(required(form, "contribution") || "150"),
       salesTarget: Number(required(form, "salesTarget") || 5),
+      refundEnabled,
       refundPence: poundsToPence(required(form, "refundValue") || "150"),
   };
 
@@ -154,6 +156,13 @@ export default function NewAgreement() {
               <s-number-field label="Sales target" name="salesTarget" value="5" min={1}></s-number-field>
               <s-money-field label="Refund when achieved" name="refundValue" value="150"></s-money-field>
             </s-grid>
+            <s-checkbox
+              label="Offer a refund when the sales target is achieved"
+              name="refundEnabled"
+              value="enabled"
+              defaultChecked
+              details="Turn this off to keep the sales target in the agreement without showing a refund offer."
+            ></s-checkbox>
             <s-text-area label="Content deliverables" name="deliverables" rows={4} value="3 video posts, 3 static posts and 6 stories within 30 days"></s-text-area>
             <s-text-area label="Additional terms" name="terms" rows={5}></s-text-area>
             <s-button type="submit" variant="primary" loading={saving}>Create private agreement</s-button>
