@@ -116,15 +116,24 @@ export default function EditAgreement() {
   const navigation = useNavigation();
 
   return (
-    <s-page heading={`Edit ${agreement.reference}`} inlineSize="small">
-      <s-link slot="breadcrumb-actions" href={`/app/agreements/${agreement.id}`}>Agreement</s-link>
-      <s-section heading="Agreement terms">
-        <s-stack direction="block" gap="base">
-          <s-banner tone="warning" heading="Edits are recorded">
-            If either party has already signed, saving changes clears both signatures and requires the revised agreement to be signed again.
-          </s-banner>
-          {result && !result.ok && <s-banner tone="critical">{result.error}</s-banner>}
-          <Form method="post">
+    <Form method="post">
+      <s-page heading={`Edit ${agreement.reference}`} inlineSize="small">
+        <s-link slot="breadcrumb-actions" href={`/app/agreements/${agreement.id}`}>Agreement</s-link>
+        <s-button
+          slot="primary-action"
+          type="submit"
+          variant="primary"
+          icon="save"
+          loading={navigation.state === "submitting"}
+        >
+          Save revised agreement
+        </s-button>
+        <s-section heading="Agreement terms">
+          <s-stack direction="block" gap="base">
+            <s-banner tone="warning" heading="Edits are recorded">
+              If either party has already signed, saving changes clears both signatures and requires the revised agreement to be signed again.
+            </s-banner>
+            {result && !result.ok && <s-banner tone="critical">{result.error}</s-banner>}
             <s-stack direction="block" gap="base">
               <s-text-field label="Creator name" name="creatorName" value={agreement.creatorName} required></s-text-field>
               <s-email-field label="Creator email" name="creatorEmail" value={agreement.creatorEmail} required></s-email-field>
@@ -153,10 +162,10 @@ export default function EditAgreement() {
                 <s-button href={`/app/agreements/${agreement.id}`}>Cancel</s-button>
               </s-button-group>
             </s-stack>
-          </Form>
-        </s-stack>
-      </s-section>
-    </s-page>
+          </s-stack>
+        </s-section>
+      </s-page>
+    </Form>
   );
 }
 
