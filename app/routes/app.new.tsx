@@ -1,14 +1,19 @@
 import { randomBytes, scryptSync } from "node:crypto";
 import { useState } from "react";
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Form, useActionData, useNavigation } from "react-router";
+import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { DEFAULT_DELIVERABLES, DEFAULT_TERMS } from "../agreement-defaults.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  return null;
+  const { session } = await authenticate.admin(request);
+  const saved = await prisma.agreementDefault.findUnique({ where: { shop: session.shop } });
+  return {
+    deliverables: saved?.deliverables || DEFAULT_DELIVERABLES,
+    terms: saved?.terms || DEFAULT_TERMS,
+  };
 };
 
 const required = (form: FormData, key: string) => String(form.get(key) || "").trim();
@@ -29,6 +34,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const salt = randomBytes(16).toString("hex");
   const pinHash = `${salt}:${scryptSync(pin, salt, 64).toString("hex")}`;
   const accessToken = randomBytes(9).toString("base64url");
+  const savedDefaults = await prisma.agreementDefault.findUnique({ where: { shop: session.shop } });
   const existingReferences = await prisma.agreement.findMany({
     where: { reference: { startsWith: "PS-INF-" } },
     select: { reference: true },
@@ -47,8 +53,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       socialHandle: required(form, "socialHandle") || null,
       vehicle,
       wheelSpecification: required(form, "wheelSpecification") || "Bespoke steering wheel specification to be confirmed",
-      deliverables: required(form, "deliverables") || "3 video posts, 3 static posts and 6 stories within 30 days",
-      terms: required(form, "terms") || "Each publication on an individual social platform counts as one deliverable. Qualifying sales must be completed and non-refunded.",
+      deliverables: required(form, "deliverables") || savedDefaults?.deliverables || DEFAULT_DELIVERABLES,
+      terms: required(form, "terms") || savedDefaults?.terms || DEFAULT_TERMS,
       wheelValuePence: poundsToPence(required(form, "wheelValue") || "350"),
       contributionPence: poundsToPence(required(form, "contribution") || "150"),
       salesTarget: Number(required(form, "salesTarget") || 5),
@@ -81,6 +87,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function NewAgreement() {
+  const defaults = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
   const [copied, setCopied] = useState(false);
@@ -163,8 +170,8 @@ export default function NewAgreement() {
               defaultChecked
               details="Turn this off to keep the sales target in the agreement without showing a refund offer."
             ></s-checkbox>
-            <s-text-area label="Content deliverables" name="deliverables" rows={4} value="3 video posts, 3 static posts and 6 stories within 30 days"></s-text-area>
-            <s-text-area label="Additional terms" name="terms" rows={5}></s-text-area>
+            <s-text-area label="Content deliverables" name="deliverables" rows={5} value={defaults.deliverables}></s-text-area>
+            <s-text-area label="Terms and conditions" name="terms" rows={18} value={defaults.terms}></s-text-area>
             <s-button type="submit" variant="primary" loading={saving}>Create private agreement</s-button>
           </s-stack>
         </Form>

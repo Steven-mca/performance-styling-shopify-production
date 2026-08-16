@@ -20,6 +20,7 @@ export default function App() {
       <s-app-nav>
         <s-link href="/app">Agreements</s-link>
         <s-link href="/app/new">Create agreement</s-link>
+        <s-link href="/app/defaults">Agreement defaults</s-link>
       </s-app-nav>
       <Outlet />
     </AppProvider>
